@@ -10,6 +10,7 @@
 //   "100644 hello.txt\0" followed by 32 raw bytes of SHA-256
 
 #include "tree.h"
+#include "index.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -130,12 +131,15 @@ int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
 //
 // Returns 0 on success, -1 on error.
 // Recursive helper to build trees
+// ─── TODO: Implement these ──────────────────────────────────────────────────
+
+// Recursive helper to build trees
 static int write_tree_level(IndexEntry *entries, int count, int depth, ObjectID *out_hash) {
     Tree tree;
     tree.count = 0;
     int i = 0;
 
-while (i < count) {
+    while (i < count) {
         const char *path = entries[i].path + depth;
         char *slash = strchr(path, '/');
 
@@ -147,7 +151,6 @@ while (i < count) {
             te->hash = entries[i].hash;
             i++;
         } else {
-          
             // It's a directory. Find out how much of the path is the directory name.
             int dir_len = slash - path;
             char dir_name[256];
@@ -168,16 +171,8 @@ while (i < count) {
             // Recursively build the tree for this subdirectory
             ObjectID sub_hash;
             if (write_tree_level(&entries[i], j - i, depth + dir_len + 1, &sub_hash) != 0) {
-            // Serialize the finished tree and write it to the object store
-            void *data;
-            size_t len;
-            if (tree_serialize(&tree, &data, &len) != 0) return -1;
-    
-            int rc = object_write(OBJ_TREE, data, len, out_hash);
-            free(data);
-    
-            return rc;
-}
+                return -1;
+            }
 
             TreeEntry *te = &tree.entries[tree.count++];
             te->mode = 0040000; // Directory mode
@@ -185,9 +180,19 @@ while (i < count) {
             te->hash = sub_hash;
 
             i = j; // Skip past all the entries we just processed in the subdirectory
-
         }
     }
+
+    // Serialize the finished tree and write it to the object store
+    void *data;
+    size_t len;
+    if (tree_serialize(&tree, &data, &len) != 0) return -1;
+    
+    int rc = object_write(OBJ_TREE, data, len, out_hash);
+    free(data);
+    
+    return rc;
+}
 
 // Build a tree hierarchy from the current index and write all tree
 // objects to the object store.
