@@ -117,8 +117,35 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
         return 0;
     }
 
-    return -1;
+  char hex[HASH_HEX_SIZE + 1];
+    hash_to_hex(id_out, hex);
+    
+    char dir_path[512];
+    snprintf(dir_path, sizeof(dir_path), "%s/%.2s", OBJECTS_DIR, hex);
+    mkdir(dir_path, 0755);
+
+    char file_path[512];
+    snprintf(file_path, sizeof(file_path), "%s/%s", dir_path, hex + 2);
+
+    char temp_path[512];
+    snprintf(temp_path, sizeof(temp_path), "%s.tmp", file_path);
+
+    int fd = open(temp_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    if (fd < 0) { free(full_data); return -1; }
+
+    if (write(fd, full_data, full_len) != (ssize_t)full_len) {
+        close(fd); free(full_data); return -1;
+    }
+
+    fsync(fd);
+    close(fd);
+    free(full_data);
+
+    if (rename(temp_path, file_path) != 0) return -1;
+
+    return 0;
 }
+
 
 // Read an object from the store.
 //
