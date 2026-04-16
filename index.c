@@ -259,6 +259,24 @@ int index_add(Index *index, const char *path) {
     }
     free(data);
 
-    // --- PAUSE HERE FOR COMMIT 4 ---
-    return -1;
+// 4. Update the staging area (index) in memory
+    IndexEntry *entry = index_find(index, path);
+    if (!entry) {
+        // New file: add it to the end of the array
+        if (index->count >= MAX_INDEX_ENTRIES) return -1;
+        entry = &index->entries[index->count++];
+        strncpy(entry->path, path, sizeof(entry->path) - 1);
+        entry->path[sizeof(entry->path) - 1] = '\0';
+    }
+
+    // Convert standard OS permissions into Git's standard modes
+    if (st.st_mode & S_IXUSR) entry->mode = 0100755;
+    else entry->mode = 0100644;
+    
+    entry->hash = hash;
+    entry->mtime_sec = (uint64_t)st.st_mtime;
+    entry->size = (uint32_t)st.st_size;
+
+    // 5. Save the updated index back to the disk atomically
+    return index_save(index);
 }
