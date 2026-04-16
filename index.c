@@ -231,9 +231,34 @@ int index_save(const Index *index) {
 //   - index_find                       : checking if the file is already staged
 //
 // Returns 0 on success, -1 on error.
+// Stage a file: read its contents, write as a blob, update/add index entry.
 int index_add(Index *index, const char *path) {
-    // TODO: Implement file staging
-    // (See Lab Appendix for logical steps)
-    (void)index; (void)path;
+    // 1. Get file metadata (size, permissions)
+    struct stat st;
+    if (stat(path, &st) != 0) return -1;
+    
+    // Only allow regular files to be staged
+    if (!S_ISREG(st.st_mode)) return -1;
+
+    // 2. Read the file contents into memory
+    FILE *f = fopen(path, "rb");
+    if (!f) return -1;
+
+    uint8_t *data = malloc(st.st_size);
+    if (!data) { fclose(f); return -1; }
+
+    if (st.st_size > 0 && fread(data, 1, st.st_size, f) != (size_t)st.st_size) {
+        free(data); fclose(f); return -1;
+    }
+    fclose(f);
+
+    // 3. Save the contents to the object store as a BLOB
+    ObjectID hash;
+    if (object_write(OBJ_BLOB, data, st.st_size, &hash) != 0) {
+        free(data); return -1;
+    }
+    free(data);
+
+    // --- PAUSE HERE FOR COMMIT 4 ---
     return -1;
 }
