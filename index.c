@@ -177,10 +177,49 @@ int index_load(Index *index) {
 //
 // Returns 0 on success, -1 on error.
 int index_save(const Index *index) {
-    // TODO: Implement atomic index saving
-    // (See Lab Appendix for logical steps)
-    (void)index;
-    return -1;
+// Helper for qsort to sort index entries by path
+static int compare_index_entries(const void *a, const void *b) {
+    return strcmp(((const IndexEntry *)a)->path, ((const IndexEntry *)b)->path);
+}
+
+// Save the index to .pes/index atomically.
+int index_save(const Index *index) {
+    // 1. Create a mutable copy of the index so we can sort it
+    Index sorted_index = *index;
+    qsort(sorted_index.entries, sorted_index.count, sizeof(IndexEntry), compare_index_entries);
+
+    // 2. Set up the temporary file path
+    char temp_path[512];
+    snprintf(temp_path, sizeof(temp_path), "%s.tmp", INDEX_FILE);
+
+    // 3. Open the temp file for writing
+    FILE *f = fopen(temp_path, "w");
+    if (!f) return -1;
+
+    // 4. Write each entry to the file: <mode> <hash> <mtime> <size> <path>
+    for (int i = 0; i < sorted_index.count; i++) {
+        const IndexEntry *entry = &sorted_index.entries[i];
+        char hex[HASH_HEX_SIZE + 1];
+        hash_to_hex(&entry->hash, hex);
+
+        fprintf(f, "%o %s %llu %u %s\n",
+                entry->mode,
+                hex,
+                (unsigned long long)entry->mtime_sec,
+                entry->size,
+                entry->path);
+    }
+
+    // 5. Ensure everything is flushed from RAM and safely on the hard drive
+    fflush(f);
+    fsync(fileno(f));
+    fclose(f);
+
+    // 6. Atomically replace the old index with the new one
+    if (rename(temp_path, INDEX_FILE) != 0) return -1;
+
+    return 0;
+}
 }
 
 // Stage a file for the next commit.
