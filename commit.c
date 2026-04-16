@@ -216,6 +216,15 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
     
     commit.timestamp = (uint64_t)time(NULL);
 
-    //
+// 4. Copy the commit message
+    strncpy(commit.message, message, sizeof(commit.message) - 1);
+    commit.message[sizeof(commit.message) - 1] = '\0';
+
+    // 5. Serialize the commit struct into a text buffer
+    void *data;
+    size_t len;
+    if (commit_serialize(&commit, &data, &len) != 0) return -1;
+
+    // --- PAUSE HERE FOR COMMIT 4 ---
     return -1;
 }
