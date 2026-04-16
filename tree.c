@@ -135,9 +135,22 @@ static int write_tree_level(IndexEntry *entries, int count, int depth, ObjectID 
     tree.count = 0;
     int i = 0;
 
-    // --- PAUSE HERE FOR COMMIT 2 ---
-    return -1;
-}
+while (i < count) {
+        const char *path = entries[i].path + depth;
+        char *slash = strchr(path, '/');
+
+        if (!slash) {
+            // No slash means it's a file at this directory level
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = entries[i].mode;
+            strcpy(te->name, path);
+            te->hash = entries[i].hash;
+            i++;
+        } else {
+            // --- PAUSE HERE FOR COMMIT 3 ---
+            return -1;
+        }
+    }
 
 // Build a tree hierarchy from the current index and write all tree
 // objects to the object store.
