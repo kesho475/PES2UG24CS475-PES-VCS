@@ -209,6 +209,13 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
         commit.has_parent = 0;
     }
 
+// 3. Set the author and timestamp
+    const char *author_str = pes_author();
+    strncpy(commit.author, author_str, sizeof(commit.author) - 1);
+    commit.author[sizeof(commit.author) - 1] = '\0'; // Ensure null-termination
+    
+    commit.timestamp = (uint64_t)time(NULL);
+
     //
     return -1;
 }
