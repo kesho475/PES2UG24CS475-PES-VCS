@@ -147,8 +147,37 @@ while (i < count) {
             te->hash = entries[i].hash;
             i++;
         } else {
-            // --- PAUSE HERE FOR COMMIT 3 ---
-            return -1;
+          
+            // It's a directory. Find out how much of the path is the directory name.
+            int dir_len = slash - path;
+            char dir_name[256];
+            strncpy(dir_name, path, dir_len);
+            dir_name[dir_len] = '\0';
+
+            // Find all contiguous entries that belong to this same directory
+            int j = i + 1;
+            while (j < count) {
+                const char *next_path = entries[j].path + depth;
+                if (strncmp(next_path, dir_name, dir_len) == 0 && next_path[dir_len] == '/') {
+                    j++;
+                } else {
+                    break;
+                }
+            }
+
+            // Recursively build the tree for this subdirectory
+            ObjectID sub_hash;
+            if (write_tree_level(&entries[i], j - i, depth + dir_len + 1, &sub_hash) != 0) {
+                return -1;
+            }
+
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = 0040000; // Directory mode
+            strcpy(te->name, dir_name);
+            te->hash = sub_hash;
+
+            i = j; // Skip past all the entries we just processed in the subdirectory
+
         }
     }
 
